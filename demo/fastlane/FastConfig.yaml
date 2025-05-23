@@ -1,0 +1,68 @@
+
+# 只修改此配置文件，对fastfile文件不做改动
+# YAML 数据结构可以用类似大纲的缩排方式呈现，结构通过缩进来表示，数组通过减号“-”来表示，map结构里面的key/value对用冒号“:”来分隔
+# 配置完，可使用 fastlane cy 来检查YAML格式是否正确。 cy: check YAML 的缩写
+# YAML 百科：http://baike.baidu.com/link?url=t1dstphqFl3BVDHEaOSBJ2iqgChmDSU4olzmfm3mo16Mi3rRZXPurmLsXPG-W4yjK_htGDbO0rexCP_LgrbK0q
+
+
+
+# App 名字 
+app_name: 
+
+# 编译相关参数 
+sign_tool_path: "/manifest-sign-tool" # 从user路径开始
+
+# 钉钉聊天机器人 选填
+
+robot_webhook_url: 
+
+# cdn-oss上传参数
+cdn_param: "param"
+cdn_upload_api: "http://your_domain/upload.do"
+public_cdn_url: 'https://your_domain/cdn-oss/'
+# 域名
+deploy_domain: 'your_domain'
+# 图标素材url
+icon_url: 'https:your_domain/path/icon.png'
+
+
+
+# 给不同的lane 指定参数
+lane:
+
+
+  sit:
+    # 打SIT包要用到的 product
+    product: "xxx" #默认是default，根据实际项目来
+    #打包签名的p12文件在项目的相对路径
+    sign_p12_path: "../xx/xx.p12"
+    #打包签名的p12文件密码
+    sign_keystore_passwd: "xxx"
+    #私钥别名
+    sign_private: "xxx"
+    #私钥密码
+    sign_key_alias_passwd: "xxx"
+
+  uat:
+    # 打UAT包要用到的 product
+    product: "xxx" #默认是default，根据实际项目来
+    #打包签名的p12文件在项目的相对路径
+    sign_p12_path: ".../xx/xx.p12"
+    #打包签名的p12文件密码
+    sign_keystore_passwd: "xxx"
+    #私钥别名
+    sign_private: "xxx"
+    #私钥密码
+    sign_key_alias_passwd: "xxx" 
+
+  pro:
+    # 打PRO包要用到的 product
+    product: "xxx" #默认是default，根据实际项目来
+    #打包签名的p12文件在项目的相对路径
+    sign_p12_path: ".../xx/xx.p12"
+    #打包签名的p12文件密码
+    sign_keystore_passwd: "xxx"
+    #私钥别名
+    sign_private: "xxx"
+    #私钥密码
+    sign_key_alias_passwd: "xxx" 

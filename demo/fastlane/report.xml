@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="fastlane.lanes">
+    
+    
+    
+      
+      <testcase classname="fastlane.lanes" name="0: default_platform" time="0.000433">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="1: java -version" time="0.142479">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="2: ohpm -v" time="0.983476">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="3: ruby -v" time="0.031306">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="4: hvigorw -v" time="0.387879">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="5: ohpm install --all" time="0.818228">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="6: Switch to ios post_dingding_robot lane" time="0.00024">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="7: notification" time="0.890815">
+        
+      </testcase>
+    
+  </testsuite>
+</testsuites>

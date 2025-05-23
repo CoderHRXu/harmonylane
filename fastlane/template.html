@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>$title</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                background-color: #f5f7fa;
+                color: #333;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                position: relative;
+                overflow-x: hidden;
+            }
+
+            .card {
+                background-color: white;
+                border-radius: 20px;
+                box-shadow: 0 10px 30px rgba(0, 51, 204, 0.1);
+                width: 90%;
+                max-width: 380px;
+                padding: 20px;
+                position: relative;
+                z-index: 1;
+                margin-bottom: 30px;
+                text-align: center;
+            }
+
+            .app-icon {
+                width: 90px;
+                height: 90px;
+                border-radius: 10px;
+                margin: 0 auto 20px;
+                border: 3px solid white;
+                box-shadow: 0 5px 15px rgba(0, 51, 204, 0.2);
+                transition: all 0.3sicon ease;
+            }
+
+
+            .app-title {
+                font-size: 22px;
+                font-weight: 600;
+                color: #3A98EB;
+                margin-bottom: 5px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .version-badge {
+                background-color: #3A98EB;
+                color: white;
+                font-size: 12px;
+                padding: 2px 8px;
+                border-radius: 10px;
+                margin-left: 8px;
+                font-weight: 500;
+            }
+
+            .app-version {
+                color: #666;
+                font-size: 13px;
+                margin-bottom: 20px;
+            }
+
+            .info-card {
+                background-color: #f8f9fa;
+                border-radius: 12px;
+                padding: 15px;
+                margin: 15px 0;
+                text-align: left;
+            }
+
+            .info-item {
+                display: flex;
+                margin-bottom: 10px;
+                font-size: 14px;
+                color: #555;
+                align-items: center;
+            }
+
+            .info-item:last-child {
+                margin-bottom: 0;
+            }
+
+            .info-icon {
+                width: 20px;
+                height: 20px;
+                margin-right: 10px;
+                color: #3A98EB;
+                flex-shrink: 0;
+            }
+
+            .qr-container {
+                margin: 20px 0;
+            }
+
+            .qr-label {
+                font-size: 13px;
+                color: #888;
+                margin-bottom: 8px;
+            }
+
+            .qr-code {
+                width: 140px;
+                height: 140px;
+                margin: 0 auto;
+                background-color: white;
+                border-radius: 10px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+                transition: all 0.3s ease;
+            }
+
+            .qr-code:hover {
+                transform: scale(1.05);
+            }
+
+            .download-btn {
+                background: linear-gradient(135deg, #3A98EB 0%, #3A98EB 100%);
+                color: white;
+                border: none;
+                border-radius: 12px;
+                padding: 14px 24px;
+                font-size: 16px;
+                font-weight: 500;
+                width: 100%;
+                max-width: 220px;
+                margin: 10px auto;
+                cursor: pointer;
+                box-shadow: 0 4px 15px rgba(0, 51, 204, 0.3);
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .download-btn:active {
+                transform: translateY(0);
+            }
+
+            .download-btn::after {
+                content: '';
+                position: absolute;
+                top: -50%;
+                left: -50%;
+                width: 200%;
+                height: 200%;
+                background: linear-gradient(to bottom right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0) 100%);
+                transform: rotate(30deg);
+                transition: all 0.3s ease;
+            }
+
+            .download-btn:hover::after {
+                left: 100%;
+            }
+
+            .btn-icon {
+                width: 18px;
+                height: 18px;
+                margin-right: 8px;
+            }
+
+            .instruction {
+                font-size: 12px;
+                color: #888;
+                margin-top: 20px;
+            }
+
+            .harmony-badge {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-top: 15px;
+            }
+
+            .harmony-icon {
+                width: 16px;
+                height: 16px;
+                margin-right: 6px;
+                color: #0066ff;
+            }
+
+            .power {
+                font-size: 11px;
+                color: #666;
+                display: inline-block;
+            }
+
+            .link {
+                color: #0066ff;
+                text-decoration: none;
+            }
+
+            .pulse {
+                animation: pulse 2s infinite;
+            }
+
+            .float {
+                animation: float 3s ease-in-out infinite;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <img src="../../icon-512.png" class="app-icon float" alt="App Icon" />
+
+            <div class="app-title">
+                $title
+                <span class="version-badge">$env</span>
+            </div>
+
+            <div class="app-version">(v$version_name $version_code) • $size</div>
+
+            <div class="info-card">
+                <div class="info-item">
+                    <svg class="info-icon" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M19,19H5V8H19M16,1V3H8V1H6V3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3H18V1M17,12H12V17H17V12Z" />
+                    </svg>
+                    <span>更新时间: $date</span>
+                </div>
+                <div class="info-item">
+                    <svg class="info-icon" viewBox="0 0 24 24">
+                        <path
+                            fill="currentColor"
+                            d="M11 9h2V7h-2m1 13c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m0-18A10 10 0 002 12a10 10 0 0010 10 10 10 0 0010-10A10 10 0 0012 2m-1 15h2v-6h-2v6z"
+                        />
+                    </svg>
+                    <span>更新说明: $desc</span>
+                </div>
+            </div>
+
+            <div class="qr-container">
+                <div class="qr-label">扫描二维码安装</div>
+                <img class="qr-code" src="$qrcode" alt="QR Code" />
+            </div>
+
+            <button class="download-btn pulse" id="downloadButton">
+                <svg class="btn-icon" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
+                </svg>
+                安装
+            </button>
+           
+        </div>
+
+        <script>
+           
+      
+                const downloadBtn = document.querySelector('.download-btn')
+
+                downloadBtn.addEventListener('click', function (e) {
+                    // Create ripple element
+                    const ripple = document.createElement('span')
+                    ripple.className = 'ripple'
+
+                    // Position the ripple
+                    const rect = this.getBoundingClientRect()
+                    const size = Math.max(rect.width, rect.height)
+                    const x = e.clientX - rect.left - size / 2
+                    const y = e.clientY - rect.top - size / 2
+
+                    // Style the ripple
+                    ripple.style.width = ripple.style.height = size + 'px'
+                    ripple.style.left = x + 'px'
+                    ripple.style.top = y + 'px'
+                    ripple.style.backgroundColor = 'rgba(255, 255, 255, 0.3)'
+                    ripple.style.position = 'absolute'
+                    ripple.style.borderRadius = '50%'
+                    ripple.style.transform = 'scale(0)'
+                    ripple.style.animation = 'ripple 0.6s linear'
+
+                    // Add ripple to button
+                    this.appendChild(ripple)
+
+                    // Remove ripple after animation
+                    setTimeout(() => {
+                        ripple.remove()
+                    }, 600)
+                })
+
+                // QR code click effect
+                const qrCode = document.querySelector('.qr-code')
+                qrCode.addEventListener('click', function () {
+                    this.style.transform = 'scale(0.95)'
+                    setTimeout(() => {
+                        this.style.transform = 'scale(1)'
+                    }, 300)
+                })
+            })
+            document.getElementById("downloadButton").onclick = function () {
+                document.getElementById("audioElement").play();
+                confirm("开始安装后，请按home键返回桌面查看安装进度")
+                var itemService = "$itemService"
+                window.location.href = itemService;
+            }
+            window.onload = function () {
+                var qr = "$qrcode";
+                console.log("onload 调用了,图片地址是 " + qr)
+                document.getElementsByClassName("qr-code")[0].src = qr
+            }
+        </script>
+
+    </body>
+</html>

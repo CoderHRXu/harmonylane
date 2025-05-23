@@ -1,0 +1,637 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+ 
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+ 
+fastlane_require 'yaml'
+fastlane_require 'ostruct'
+fastlane_require 'faraday'
+fastlane_require 'faraday_middleware'
+fastlane_require 'nokogiri'
+fastlane_require 'rqrcode' 
+fastlane_require 'digest' 
+fastlane_require 'json' 
+fastlane_require 'net/ftp'
+
+default_platform(:ios)
+ 
+platform :ios do
+
+	desc "before_all do"
+	before_all do
+		# check environment
+		sh "java -version"
+   	sh "ohpm -v"
+		sh "ruby -v"
+		
+    Dir.chdir("../") do
+			sh "hvigorw -v"
+			# 安装依赖
+      sh("ohpm install --all") 
+    end
+
+	end
+ 
+  	desc "hvigor build"
+  	private_lane :hvigor do |options|
+
+    	task          	= options[:task]
+    	product       	= options[:product]
+    	build_mode    	= options[:build_mode]
+    	args          	= options[:args]
+    	if args.nil?
+      		args				= []
+    	end
+    	if !product.nil?
+      		args 				= args + ["-p", "product=#{product}"]
+    	end
+    	if !build_mode.nil?
+      		args        = args + ["-p", "buildMode=#{build_mode}"]
+    	end
+    	if task.nil?
+      		cmds        = ["hvigorw"] + args
+    	else
+      		cmds        = ["hvigorw", task] + args
+    	end
+ 
+    	# 指定工作路径，fastlane 路径上一级，也就是项目的根路径
+    	UI.success(cmds)
+    	project_dir = "../"
+    	Dir.chdir(project_dir) do
+      		sh(*cmds)
+    	end
+ 
+    	# 只处理打包task
+    	if !(task =~ /\b(assemble)/)
+      		next
+    	end
+
+    	hap_search_path   = File.join(project_dir, "**", "build", "**", "outputs", "**", "*.hap")
+    	app_search_path   = File.join(project_dir, "build", "outputs", "**", "*.app")
+    	new_haps          = Dir[hap_search_path].map { |path| File.expand_path(path) }
+    	new_apps          = Dir[app_search_path].map { |path| File.expand_path(path) }
+    
+    	last_hap_path     = new_haps.sort_by(&File.method(:mtime)).last
+    	last_app_path     = new_apps.sort_by(&File.method(:mtime)).last
+ 
+    	Actions.lane_context[:HVIGOR_HAP_OUTPUT_PATH] = File.expand_path(last_hap_path) if last_hap_path
+    	Actions.lane_context[:HVIGOR_APP_OUTPUT_PATH] = File.expand_path(last_app_path) if last_app_path
+  	end
+ 
+  lane :sit do
+    
+    pack_and_upload(envirment: "sit")
+  end
+
+  lane :uat do
+
+    pack_and_upload(envirment: "uat")
+  end
+
+  lane :pro do
+
+    pack_and_upload(envirment: "pro")
+  end
+
+  desc "build hap"
+  private_lane :pack_and_upload do |options|
+
+    # Get configurations
+		config 				    	= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
+		# load as map
+		settings 			    	= OpenStruct.new(config)
+		productName					= "default"
+    envirment						= options[:envirment]
+    app_name						= settings['app_name']
+    icon_url						= settings['icon_url'] 
+
+		robot_token 				= settings['robot_token']
+
+    case envirment
+
+			when 'sit'
+					outputDirectory	= "#{Dir.pwd}/build/sit/"
+					productName			= settings['lane']['sit']['product']
+    
+
+    	when 'uat'
+					outputDirectory = "#{Dir.pwd}/build/uat/"
+      		productName			= settings['lane']['uat']['product']
+
+      when 'pro'
+					outputDirectory = "#{Dir.pwd}/build/pro/"
+      		productName			= settings['lane']['pro']['product']
+    end
+
+     # 获取版本号
+    app_info							= JSON.parse(File.read("../AppScope/app.json5"))["app"]
+
+    currentTime 		  		= Time.new.strftime("%Y%m%d%H%M%S")
+     # 拼接CDN链接
+    public_cdn_url 				= settings['public_cdn_url'] 
+
+    hvigor(task: "clean")
+    hvigor(
+      task: "assembleHap",
+      product: productName,
+      build_mode: "release",
+      args: ["--mode", "module", "--no-daemon"],
+    )
+   
+    hap_path							= Actions.lane_context[:HVIGOR_HAP_OUTPUT_PATH]
+    # 获取版本号
+    version_name					= app_info["versionName"]
+    # 重命名
+    hap_name							= "#{File::basename(hap_path, ".hap")}_#{version_name}_#{envirment}_#{currentTime}.hap"
+    new_hap_path					= File::join(File::dirname(hap_path), hap_name)
+    File::rename(hap_path, new_hap_path)
+    puts "Build output: #{new_hap_path}"
+    
+		# 计算文件大小
+		file_size 						= File.size(new_hap_path) / 1024 / 1024
+		size_text 						= "#{file_size}MB"
+		puts "文件大小为#{size_text}MB"
+
+		# 根据oss规则拼接静态链接
+    hap_url 			    		= "#{public_cdn_url}/your_path/#{envirment}/#{hap_name}"
+		manifest_url 		 			= "#{public_cdn_url}/your_path/#{envirment}/#{currentTime}-download.json5"
+		itm_services_url 			= "store://enterprise/manifest?url=#{manifest_url}" 
+
+    # 签名
+    sign_hap(
+			file_path: new_hap_path, 
+			envirment: envirment, 
+			app_info: app_info, 
+			hap_url: hap_url, 
+			currentTime: currentTime
+		)
+
+    # 自动获取当前分支最新提交记录作为更新日志
+    changeLog = changelog_from_git_commits(
+                date_format: "short",
+                commits_count: "1",
+    )
+
+   	description = "#{changeLog}"
+
+    # 创建下载页面
+    create_download_page(
+			envirment:envirment, 
+			currentTime: currentTime, 
+			changeLog: changeLog, 
+			itm_services_url: itm_services_url, 
+			version: version_name, 
+			app_name: app_name,
+			file_size: size_text
+		)
+		
+		public_download_page_url	= "#{public_cdn_url}/your_path/#{envirment}/#{currentTime}-template.html"
+		
+
+    # 创建下载页面二维码
+    puts "start create qrcode"
+    create_qrcode(
+			url: public_download_page_url, 
+			currentTime: currentTime, 
+			output_path: outputDirectory, 
+			envirment: envirment
+		)
+    
+    # upload ipa hap
+		puts "start upload hap"
+		upload_to_server(
+			filePath: new_hap_path, 
+			fileName: hap_name, 
+			envirment: envirment
+		)
+    
+  	# 发送消息通知
+		if !robot_token.nil?
+			post_dingding_robot(
+				robot_token: robot_token, 
+				appName: appName, 
+				icon_url: icon_url,
+				envType: envirment, 
+				version_name:version_name,
+				download_page_url: public_download_page_url, 
+				changeLog: description
+			)
+		end
+
+  end
+
+  private_lane :sign_hap do |options|
+    
+    file_path			= options[:file_path] 
+    app_info			= options[:app_info]
+    hap_url				= options[:hap_url]
+    envirment			= options[:envirment]
+    currentTime		= options[:currentTime]
+
+    # 检查文件是否存在
+    unless File.exist?(file_path)
+      UI.user_error!("文件不存在: #{file_path}")
+    end
+    # 计算文件的 SHA256 哈希值
+    sha256 				= Digest::SHA256.file(file_path).hexdigest
+
+    config				= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
+		# load as map
+		settings			= OpenStruct.new(config)
+    deploy_domain	= settings['deploy_domain'] 
+    icon_url			= settings['icon_url'] 
+    app_name			= settings['app_name']
+    # 组装download.json5
+    data = {
+      "app":
+      {
+          "bundleName": app_info['bundleName'],
+          "bundleType": "app",
+          "versionCode": app_info['versionCode'],
+          "versionName": app_info['versionName'],
+          "label": "#{app_name}#{envirment}",
+          "deployDomain": deploy_domain,
+          "icons":
+          {
+              "normal": icon_url,
+              "large": icon_url
+          },
+          "minAPIVersion": "5.0.2(14)",
+          "targetAPIVersion": "5.0.2(14)",
+          "modules":
+          [
+              {
+                  "name": "entry",
+                  "type": "entry",
+                  "deviceTypes":
+                  [
+                      "tablet",
+                      "phone"
+                  ],
+                  "packageUrl": hap_url,
+                  "packageHash": sha256
+              }
+          ]
+      },
+      "sign": ""
+    }
+    json_string           = data.to_json
+	
+		if Dir.exist?(File.join(File.dirname(Dir.pwd), "fastlane/build"))
+		
+		else
+		 	Dir.mkdir(File.join(File.dirname(Dir.pwd), "fastlane/build"))
+		end
+
+    File.open("build/manifest.json5", 'w') do |file|
+      file.write(json_string)
+    end
+ 
+    puts('manifest.json5 写入完毕')
+
+
+    # 开始生成签名
+    sign_tool_path 		    		= settings['sign_tool_path']
+
+    sign_p12_path							= settings['lane'][envirment]['sign_p12_path']
+    sign_keystore_passwd  		= settings['lane'][envirment]['sign_keystore_passwd']
+    sign_private 		      		= settings['lane'][envirment]['sign_private'] 
+    sign_key_alias_passwd 		= settings['lane'][envirment]['sign_key_alias_passwd'] 
+
+    project_dir 							= Dir.home + sign_tool_path
+    sign_cmd 									= "java -jar #{project_dir}/manifest-sign-tool-1.0.0.jar -operation sign -mode localjks -inputFile build/manifest.json5 -outputFile build/download.json5 -keystore #{sign_p12_path} -keystorepasswd #{sign_keystore_passwd} -keyaliaspasswd #{sign_key_alias_passwd} -privatekey #{sign_private}"
+    
+    # Dir.chdir(project_dir) do
+    sh(*sign_cmd)
+    # end
+
+    # upload hap
+		puts "start upload json5"
+    json_path             		= File.join(File.dirname(Dir.pwd), "fastlane/build/download.json5")
+    json_name             		= "#{currentTime}-download.json5"
+		
+		upload_to_server(
+			filePath: json_path, 
+			fileName: json_name, 
+			envirment: envirment
+		)
+
+
+   
+
+  end
+ 
+
+  desc "上传到服务器 "
+	private_lane :upload_to_server do |options|
+
+		# Get configurations
+		config						= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
+		# load as map
+		settings					= OpenStruct.new(config)
+
+		cdn_upload_api 		= settings['cdn_upload_api']
+	
+		public_cdn_url 		= settings['public_cdn_url']
+    app_name					= settings['app_name']
+
+		conn_options = {
+			request: {
+				timeout: 1000,
+				open_timeout: 300
+			}
+		}
+
+		task = Faraday.new(nil, conn_options) do |c|
+			c.request :multipart
+			# c.request :json
+			c.request :url_encoded
+			c.response :json, content_type: /\bjson$/
+			c.adapter :httpclient
+			# c.ssl.verify = false
+		end
+
+		filePath = options[:filePath]
+		if filePath.nil?
+			UI.user_error!("You have to provide the filePath")
+		end
+
+		fileName = options[:fileName]
+		if fileName.nil?
+			UI.user_error!("You have to provide the fileName")
+		end
+
+		envirment = options[:envirment]
+		if envirment.nil?
+			UI.user_error!("You have to provide the envirment")
+		end
+
+		params = {
+    		#业务参数
+    		"business_param" =>  "xxxx",
+    		"file"	=> Faraday::UploadIO.new(filePath, 'application/hap', fileName),
+		}
+	
+		response = task.post cdn_upload_api, params
+		info  = response.body
+		puts info
+		
+
+	end
+
+	desc "upload_to_FTPSever"
+	private_lane :upload_to_FTPSever do |options|
+
+		# 采用ftp方式上传服务器（可选）
+		filePath = options[:filePath]
+		if filePath.nil?
+			UI.user_error!("You have to provide filePath")
+		end
+		
+		ftp = Net::FTP.new()
+		ftp.connect("ftp_server_ip_address", 21)
+		ftp.passive = true
+		ftp.login("username", "password")
+		# puts "服务器信息： #{ftp.system}"
+		ftp.chdir('target_path')
+		ftp.putbinaryfile(filePath)
+		ftp.close
+	end	
+
+  desc "create hap download page "
+	private_lane :create_download_page do |options|
+	
+		puts 'start create download page'
+
+		# 1. 读取 HTML 文件（注意文件路径）
+		puts File.dirname(Dir.pwd)
+		templete_path = File.join(File.dirname(Dir.pwd), "fastlane/template.html")
+		puts File.dirname(Dir.pwd)
+
+		html_content = File.read(templete_path, encoding: 'UTF-8')
+
+		# 2. 解析 HTML（自动识别文件类型）
+		doc = if html_content.include?('<!DOCTYPE html>')
+						Nokogiri::HTML.parse(html_content)
+      	else
+        		Nokogiri::HTML::DocumentFragment.parse(html_content)
+      	end
+
+		envirment					= options[:envirment]
+    currentTime				= options[:currentTime]
+    changeLog					= options[:changeLog]
+    itm_services_url 	= options[:itm_services_url]
+		version 			    = options[:version]
+    app_name					= options[:app_name]
+		file_size					= options[:file_size]
+
+		config						= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
+		# load as map
+		settings					= OpenStruct.new(config)
+		icon_url					= settings['icon_url'] 
+
+		# 3. 定义要替换的字符串（旧内容 => 新内容）
+		replacements = {
+  			
+  			"$app_icon" => icon_url,
+  			"$title" => "#{app_name} HarmonyOS",
+  			"$env" => envirment,
+  			"v$version_name $version_code" => "V#{version}",
+  			"$date" => currentTime,
+  			"$itemService"=> itm_services_url,
+  			"$desc" => changeLog,
+				"$size" => file_size,
+				"$qrcode" => "#{currentTime}-qrcode.png"
+		}
+
+		# 4. 执行替换操作
+		doc.xpath('//text()').each do |text_node|
+  			content = text_node.content
+  			replacements.each do |old_str, new_str|
+    			content.gsub!(old_str, new_str)
+  			end
+  			text_node.content = content
+		end
+
+		# 5. 输出或保存结果
+		modified_html			= doc.to_html(indent: 2)  # 自动格式化缩进
+		output_path 			= File.join(File.dirname(Dir.pwd), "fastlane/build/#{envirment}/#{currentTime}-template.html")
+		if Dir.exist?(File.join(File.dirname(Dir.pwd), "fastlane/build/#{envirment}"))
+		
+		else
+		 	Dir.mkdir(File.join(File.dirname(Dir.pwd), "fastlane/build/#{envirment}"))
+		end
+
+		File.write(output_path, modified_html, encoding: 'UTF-8')
+		puts "已生成包下载二维码文件template-#{currentTime}.html"
+
+		# 6.上传到cdn
+		puts "start upload download page"
+		page_fileName 			= "#{currentTime}-template.html"
+		upload_to_server(filePath: output_path, fileName: page_fileName, envirment: envirment)
+
+	end
+
+  desc "create qrcode "
+	private_lane :create_qrcode do |options|
+		
+		url 					= options[:url]
+		currentTime 	= options[:currentTime]
+		output_path 	= options[:output_path]
+		envirment 		= options[:envirment]
+		fileName 			= currentTime + "-qrcode.png"
+		output 				= output_path + "/" + currentTime + "-qrcode.png"
+		qr 						= RQRCode::QRCode.new(url)
+ 
+		# 生成PNG图片（你也可以选择其他格式，如SVG）
+		png = qr.as_png(
+			bit_depth: 1,
+			border_modules: 4,
+			color_mode: ChunkyPNG::COLOR_GRAYSCALE,
+			color: "black",
+			file: nil,
+			fill: "white",
+			module_px_size: 10,
+			resize_exactly_to: false,
+			resize_gte_to: false,
+			size: 200,
+		  )
+		IO.binwrite(output, png.to_s)
+
+		puts "start upload qrcode"
+		upload_to_server(
+			filePath: output, 
+			fileName: "#{currentTime}-qrcode.png", 
+			envirment: envirment
+		)
+
+	end
+
+  desc "post dingding robot 钉钉机器人 "
+	private_lane :post_dingding_robot do |options|
+
+		robot_token = options[:robot_token]
+		if robot_token.nil?
+			UI.user_error!("You have to provide the robot_token")
+		end
+		
+		appName = options[:appName]
+		if appName.nil?
+			UI.user_error!("You have to provide the appName")
+		end
+
+		icon_url = options[:appName]
+		if icon_url.nil?
+			UI.user_error!("You have to provide the icon_url")
+		end
+		
+		envType = options[:envType]
+		if envType.nil?
+			UI.user_error!("You have to provide the envType")
+		end
+
+		version_name = options[:envType]
+		if version_name.nil?
+			UI.user_error!("You have to provide the version_name")
+		end
+
+		download_page_url = options[:download_page_url]
+		if download_page_url.nil?
+			UI.user_error!("You have to provide the download_page_url")
+		end
+
+		changeLog = options[:changeLog]
+		if changeLog.nil?
+			changeLog = ''
+		end
+
+		title = "#{appName} harmony，已经打包成功，详情请戳👇👇"
+		text = "V#{version_name} #{envType} 环境 更新内容:#{changeLog}"
+
+		# UI.message("appName: #{appName}")
+		# UI.message("envType: #{envType}")
+		# UI.message("buildNum: #{buildNum}")
+		# UI.message("changeLog: #{changeLog}")
+
+		# start upload
+		conn_options = {
+			request: {
+				timeout: 1000,
+				open_timeout: 300
+			}
+		}
+
+		task = Faraday.new(nil, conn_options) do |c|
+			# c.request :multipart
+			c.request :json
+			c.request :url_encoded
+			c.response :json, content_type: /\bjson$/
+			c.adapter :httpclient
+			# c.ssl.verify = false
+		end
+
+		linkParam = {
+			'text' => "#{text}",
+			'title' => "#{title}",
+			'messageUrl' => "#{download_page_url}",
+			'picUrl' =>  "#{icon_url}"
+		}
+
+		params = {
+			'msgtype' => "link",
+			'link' => linkParam,
+		}
+
+		
+		robot_url = "https://oapi.dingtalk.com/robot/send?access_token=#{robot_token}"
+	
+		response = task.post robot_url, params
+
+		info = response.body
+
+		if info["errcode"] == 0
+			UI.success "WoW, Robot has got it! "
+		else
+			UI.user_error!("Post failed. error info : #{info}")
+
+		end
+
+	end
+
+
+	desc "post dingding robot 钉钉机器人 "
+	lane :dingding do 
+
+		puts ("dddd")
+		post_dingding_robot(
+				robot_token: "c6f57e20f8a4c5d81b5c1c3a53db3c21a5af1de7977bcdd949b3fa7c9e439f4", 
+				appName: "appName", 
+				icon_url: 'https://cdntest.csebank.cn/cdn-oss/TOC_D/phonebank/icon-512.png',
+				envType: "sit", 
+				version_name:"1.0.0",
+				download_page_url: "https://www.baidu.com", 
+				changeLog: "description"
+		)
+
+	end	
+
+	after_all do |lane|
+		notification(title: "Fastlane", message: "自动打包已完成✅✅", sound: "1")
+	end
+
+	error do |lane, exception|
+		notification(title: "Fastlane", message: "自动打包出错❌❌#{exception}", sound: "1")
+	end
+	
+
+end
