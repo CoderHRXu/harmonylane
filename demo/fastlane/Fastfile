@@ -119,13 +119,13 @@ platform :ios do
 
     case envirment
 
-			when 'sit'
-					outputDirectory	= "#{Dir.pwd}/build/sit/"
-					productName			= settings['lane']['sit']['product']
+		when 'sit'
+			outputDirectory	    = "#{Dir.pwd}/build/sit/"
+			productName			= settings['lane']['sit']['product']
     
 
     	when 'uat'
-					outputDirectory = "#{Dir.pwd}/build/uat/"
+			outputDirectory = "#{Dir.pwd}/build/uat/"
       		productName			= settings['lane']['uat']['product']
 
       when 'pro'
@@ -134,7 +134,7 @@ platform :ios do
     end
 
      # 获取版本号
-    app_info							= JSON.parse(File.read("../AppScope/app.json5"))["app"]
+    app_info                    = JSON.parse(File.read("../AppScope/app.json5"))["app"]
 
     currentTime 		  		= Time.new.strftime("%Y%m%d%H%M%S")
      # 拼接CDN链接
@@ -148,7 +148,7 @@ platform :ios do
       args: ["--mode", "module", "--no-daemon"],
     )
    
-    hap_path							= Actions.lane_context[:HVIGOR_HAP_OUTPUT_PATH]
+    hap_path                        = Actions.lane_context[:HVIGOR_HAP_OUTPUT_PATH]
     # 获取版本号
     version_name					= app_info["versionName"]
     # 重命名
@@ -158,8 +158,8 @@ platform :ios do
     puts "Build output: #{new_hap_path}"
     
 		# 计算文件大小
-		file_size 						= File.size(new_hap_path) / 1024 / 1024
-		size_text 						= "#{file_size}MB"
+		file_size                   = File.size(new_hap_path) / 1024 / 1024
+		size_text                   = "#{file_size}MB"
 		puts "文件大小为#{size_text}MB"
 
 		# 根据oss规则拼接静态链接
@@ -236,21 +236,24 @@ platform :ios do
     app_info			= options[:app_info]
     hap_url				= options[:hap_url]
     envirment			= options[:envirment]
-    currentTime		= options[:currentTime]
+    currentTime		    = options[:currentTime]
 
     # 检查文件是否存在
     unless File.exist?(file_path)
       UI.user_error!("文件不存在: #{file_path}")
     end
     # 计算文件的 SHA256 哈希值
-    sha256 				= Digest::SHA256.file(file_path).hexdigest
+    sha256 				    = Digest::SHA256.file(file_path).hexdigest
 
-    config				= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
-		# load as map
-		settings			= OpenStruct.new(config)
-    deploy_domain	= settings['deploy_domain'] 
-    icon_url			= settings['icon_url'] 
-    app_name			= settings['app_name']
+    config				    = YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
+	# load as map
+	settings			    = OpenStruct.new(config)
+    deploy_domain	        = settings['deploy_domain']
+    icon_url			    = settings['icon_url']
+    app_name			    = settings['app_name']
+    compatibleSdkVersion	= settings['compatibleSdkVersion']
+    targetSdkVersion        = settings['targetSdkVersion']
+
     # 组装download.json5
     data = {
       "app":
@@ -266,8 +269,8 @@ platform :ios do
               "normal": icon_url,
               "large": icon_url
           },
-          "minAPIVersion": "5.0.2(14)",
-          "targetAPIVersion": "5.0.2(14)",
+          "minAPIVersion": compatibleSdkVersion,
+          "targetAPIVersion": targetSdkVersion,
           "modules":
           [
               {
@@ -301,15 +304,15 @@ platform :ios do
 
 
     # 开始生成签名
-    sign_tool_path 		    		= settings['sign_tool_path']
+    sign_tool_path              = settings['sign_tool_path']
 
-    sign_p12_path							= settings['lane'][envirment]['sign_p12_path']
+    sign_p12_path               = settings['lane'][envirment]['sign_p12_path']
     sign_keystore_passwd  		= settings['lane'][envirment]['sign_keystore_passwd']
-    sign_private 		      		= settings['lane'][envirment]['sign_private'] 
+    sign_private                = settings['lane'][envirment]['sign_private']
     sign_key_alias_passwd 		= settings['lane'][envirment]['sign_key_alias_passwd'] 
 
-    project_dir 							= Dir.home + sign_tool_path
-    sign_cmd 									= "java -jar #{project_dir}/manifest-sign-tool-1.0.0.jar -operation sign -mode localjks -inputFile build/manifest.json5 -outputFile build/download.json5 -keystore #{sign_p12_path} -keystorepasswd #{sign_keystore_passwd} -keyaliaspasswd #{sign_key_alias_passwd} -privatekey #{sign_private}"
+    project_dir                 = Dir.home + sign_tool_path
+    sign_cmd                    = "java -jar #{project_dir}/manifest-sign-tool-1.0.0.jar -operation sign -mode localjks -inputFile build/manifest.json5 -outputFile build/download.json5 -keystore #{sign_p12_path} -keystorepasswd #{sign_keystore_passwd} -keyaliaspasswd #{sign_key_alias_passwd} -privatekey #{sign_private}"
     
     # Dir.chdir(project_dir) do
     sh(*sign_cmd)
@@ -336,14 +339,14 @@ platform :ios do
 	private_lane :upload_to_server do |options|
 
 		# Get configurations
-		config						= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
+		config                  = YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
 		# load as map
-		settings					= OpenStruct.new(config)
+		settings                = OpenStruct.new(config)
 
-		cdn_upload_api 		= settings['cdn_upload_api']
+		cdn_upload_api 		    = settings['cdn_upload_api']
 	
-		public_cdn_url 		= settings['public_cdn_url']
-    app_name					= settings['app_name']
+		public_cdn_url 		    = settings['public_cdn_url']
+        app_name                = settings['app_name']
 
 		conn_options = {
 			request: {
@@ -428,11 +431,11 @@ platform :ios do
       	end
 
 		envirment					= options[:envirment]
-    currentTime				= options[:currentTime]
-    changeLog					= options[:changeLog]
-    itm_services_url 	= options[:itm_services_url]
-		version 			    = options[:version]
-    app_name					= options[:app_name]
+        currentTime				    = options[:currentTime]
+        changeLog					= options[:changeLog]
+        itm_services_url 	        = options[:itm_services_url]
+		version 			        = options[:version]
+        app_name					= options[:app_name]
 		file_size					= options[:file_size]
 
 		config						= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
@@ -450,8 +453,8 @@ platform :ios do
   			"$date" => currentTime,
   			"$itemService"=> itm_services_url,
   			"$desc" => changeLog,
-				"$size" => file_size,
-				"$qrcode" => "#{currentTime}-qrcode.png"
+			"$size" => file_size,
+			"$qrcode" => "#{currentTime}-qrcode.png"
 		}
 
 		# 4. 执行替换操作
@@ -485,13 +488,13 @@ platform :ios do
   desc "create qrcode "
 	private_lane :create_qrcode do |options|
 		
-		url 					= options[:url]
+		url             = options[:url]
 		currentTime 	= options[:currentTime]
 		output_path 	= options[:output_path]
 		envirment 		= options[:envirment]
-		fileName 			= currentTime + "-qrcode.png"
-		output 				= output_path + "/" + currentTime + "-qrcode.png"
-		qr 						= RQRCode::QRCode.new(url)
+		fileName        = currentTime + "-qrcode.png"
+		output          = output_path + "/" + currentTime + "-qrcode.png"
+		qr              = RQRCode::QRCode.new(url)
  
 		# 生成PNG图片（你也可以选择其他格式，如SVG）
 		png = qr.as_png(
@@ -607,23 +610,6 @@ platform :ios do
 		end
 
 	end
-
-
-	desc "post dingding robot 钉钉机器人 "
-	lane :dingding do 
-
-		puts ("dddd")
-		post_dingding_robot(
-				robot_token: "c6f57e20f8a4c5d81b5c1c3a53db3c21a5af1de7977bcdd949b3fa7c9e439f4", 
-				appName: "appName", 
-				icon_url: 'https://cdntest.csebank.cn/cdn-oss/TOC_D/phonebank/icon-512.png',
-				envType: "sit", 
-				version_name:"1.0.0",
-				download_page_url: "https://www.baidu.com", 
-				changeLog: "description"
-		)
-
-	end	
 
 	after_all do |lane|
 		notification(title: "Fastlane", message: "自动打包已完成✅✅", sound: "1")

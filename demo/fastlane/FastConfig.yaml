@@ -9,8 +9,13 @@
 # App 名字 
 app_name: 
 
-# 编译相关参数 
-sign_tool_path: "/manifest-sign-tool" # 从user路径开始
+# 编译相关参数
+# 签名工具存放路径，从user路径开始
+sign_tool_path: "/manifest-sign-tool"
+# 编译时的版本
+compatibleSdkVersion: "5.0.2(14)"
+# 服务兼容的最低版本
+targetSdkVersion: "5.0.2(14)"
 
 # 钉钉聊天机器人 选填
 
