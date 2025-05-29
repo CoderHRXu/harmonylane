@@ -134,7 +134,7 @@ platform :ios do
     end
 
      # 获取版本号
-    app_info							= JSON.parse(File.read("../AppScope/app.json5"))["app"]
+    app_info                    = JSON.parse(File.read("../AppScope/app.json5"))["app"]
 
     currentTime 		  		= Time.new.strftime("%Y%m%d%H%M%S")
      # 拼接CDN链接
@@ -148,7 +148,7 @@ platform :ios do
       args: ["--mode", "module", "--no-daemon"],
     )
    
-    hap_path							= Actions.lane_context[:HVIGOR_HAP_OUTPUT_PATH]
+    hap_path                        = Actions.lane_context[:HVIGOR_HAP_OUTPUT_PATH]
     # 获取版本号
     version_name					= app_info["versionName"]
     # 重命名
@@ -251,6 +251,9 @@ platform :ios do
     deploy_domain	= settings['deploy_domain'] 
     icon_url			= settings['icon_url'] 
     app_name			= settings['app_name']
+    compatibleSdkVersion	= settings['compatibleSdkVersion']
+    targetSdkVersion        = settings['targetSdkVersion']
+
     # 组装download.json5
     data = {
       "app":
@@ -266,8 +269,8 @@ platform :ios do
               "normal": icon_url,
               "large": icon_url
           },
-          "minAPIVersion": "5.0.2(14)",
-          "targetAPIVersion": "5.0.2(14)",
+          "minAPIVersion": compatibleSdkVersion,
+          "targetAPIVersion": targetSdkVersion,
           "modules":
           [
               {

@@ -22,6 +22,8 @@ Command Line Tools for HarmonyOS ：鸿蒙应用开发官方命令行工具
 
 [manifest-sign-tool](https://gitee.com/arkin-internal-testing/internal-testing#%E7%94%9F%E6%88%90%E7%AD%BE%E5%90%8D)：生成应用签名工具
 
+签名工具可以点击链接获取，存放到本地。
+
 ```sh
 # 在你使用的终端中，检查以下工具是否成功安装：
 
@@ -45,8 +47,13 @@ ohpm -v   # 或 command-line-tool 配置完即可用
 准备工作，你需要生成这三个文件：
 
 1、发布证书： .cer 格式
+
 2、内部测试 Profile: .p7b 格式
+
 3、私钥文件： .p12 格式
+
+### 4.3环境准备
+需要可使用的oss环境，可以是某里云，某为云的oss，作为包上传存储的地方。
 
 ## 5.使用步骤
 ### 5.1脚本准备
@@ -61,7 +68,13 @@ ohpm -v   # 或 command-line-tool 配置完即可用
 app_name: #app名称
 
 # 编译相关参数 
-sign_tool_path: "/manifest-sign-tool" # 从user路径开始 具体存放签名工具的路径
+# 签名工具存放路径，从user路径开始
+sign_tool_path: "/manifest-sign-tool"
+# 编译时的版本
+compatibleSdkVersion: ""
+# 服务兼容的最低版本
+targetSdkVersion: ""
+
 
 # 钉钉聊天机器人 选填
 
@@ -76,11 +89,14 @@ deploy_domain: 'your_domain'  #需和cdn保持一致
 # 图标素材url
 icon_url: 'https:your_domain/path/icon.png'
 ```
+compatibleSdkVersion需要跟代码工程里使用的sdk版本匹配
+![](img/config.png)
+targetSdkVersion也是如此
 
 ### 5.3脚本适配(可选)
 
 #### 5.3.1 业务参数适配
-主要是适配upload_to_server这个子函数的想过参数，不同的服务器，所需参数不同，需要自行根据实际情况适配oss/cdn的业务参数。建议将业务配置，放到FastConfig.yaml配置文件，在upload_to_server这个lane中，将业务参数拼接
+主要是适配upload_to_server这个子函数的详细参数，不同的服务器，所需参数不同，需要自行根据实际情况适配oss/cdn的业务参数。建议将业务配置，放到FastConfig.yaml配置文件，在upload_to_server这个lane中，将业务参数拼接
 
 ```
 params = {
@@ -90,9 +106,9 @@ params = {
 		}
 ```
 
-#### 5.3.2 下载页模板适配
+#### 5.3.2 下载页模板适配（可选）
 temple.html为下载页模板，里面的icon路径使用的相对路径，可视情况考虑写死一个url链接。
-模板样式不满意，可自行找其他模板代替，只要保证$开头的变量保持一致即可。
+模板颜色可以自行调整css。样式布局不满意，也可自行找其他模板代替，只要保证$开头的变量保持一致即可。
 
 
 
@@ -103,6 +119,10 @@ temple.html为下载页模板，里面的icon路径使用的相对路径，可�
 fastlane sit/uat/pro
 ```
 即可一键构建hap包，生成签名json，上传到服务器，生成下载页面，发送钉钉通知
+
+### 5.5消息通知
+如果接了钉钉或者蓝信之类IM软件，可以会自动收到通知（需要提前配置好群聊机器人）。点击机器人的消息卡片，可以自动展示用html模板生成下载页面以及二维码。
+![preview](img/preview.png)
 
 
 
