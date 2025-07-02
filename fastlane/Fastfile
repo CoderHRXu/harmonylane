@@ -31,144 +31,144 @@ platform :ios do
 	before_all do
 		# check environment
 		sh "java -version"
-   	sh "ohpm -v"
+		sh "ohpm -v"
 		sh "ruby -v"
 		
-    Dir.chdir("../") do
+		Dir.chdir("../") do
 			sh "hvigorw -v"
 			# 安装依赖
-      sh("ohpm install --all") 
-    end
+			sh("ohpm install --all") 
+		end
 
 	end
  
-  	desc "hvigor build"
-  	private_lane :hvigor do |options|
+	desc "hvigor build"
+	private_lane :hvigor do |options|
 
-    	task          	= options[:task]
-    	product       	= options[:product]
-    	build_mode    	= options[:build_mode]
-    	args          	= options[:args]
-    	if args.nil?
-      		args				= []
-    	end
-    	if !product.nil?
-      		args 				= args + ["-p", "product=#{product}"]
-    	end
-    	if !build_mode.nil?
-      		args        = args + ["-p", "buildMode=#{build_mode}"]
-    	end
-    	if task.nil?
-      		cmds        = ["hvigorw"] + args
-    	else
-      		cmds        = ["hvigorw", task] + args
-    	end
+		task					= options[:task]
+		product				= options[:product]
+		build_mode		= options[:build_mode]
+		args					= options[:args]
+		if args.nil?
+			args				= []
+		end
+		if !product.nil?
+			args				= args + ["-p", "product=#{product}"]
+		end
+		if !build_mode.nil?
+			args				= args + ["-p", "buildMode=#{build_mode}"]
+		end
+		if task.nil?
+			cmds				= ["hvigorw"] + args
+		else
+			cmds				= ["hvigorw", task] + args
+		end
+
+		# 指定工作路径，fastlane 路径上一级，也就是项目的根路径
+		UI.success(cmds)
+		project_dir = "../"
+		Dir.chdir(project_dir) do
+			sh(*cmds)
+		end
+
+		# 只处理打包task
+		if !(task =~ /\b(assemble)/)
+			next
+		end
+
+		hap_search_path		= File.join(project_dir, "**", "build", "**", "outputs", "**", "*.hap")
+		app_search_path		= File.join(project_dir, "build", "outputs", "**", "*.app")
+		new_haps					= Dir[hap_search_path].map { |path| File.expand_path(path) }
+		new_apps					= Dir[app_search_path].map { |path| File.expand_path(path) }
+
+		last_hap_path			= new_haps.sort_by(&File.method(:mtime)).last
+		last_app_path			= new_apps.sort_by(&File.method(:mtime)).last
  
-    	# 指定工作路径，fastlane 路径上一级，也就是项目的根路径
-    	UI.success(cmds)
-    	project_dir = "../"
-    	Dir.chdir(project_dir) do
-      		sh(*cmds)
-    	end
+		Actions.lane_context[:HVIGOR_HAP_OUTPUT_PATH] = File.expand_path(last_hap_path) if last_hap_path
+		Actions.lane_context[:HVIGOR_APP_OUTPUT_PATH] = File.expand_path(last_app_path) if last_app_path
+  
+	end
  
-    	# 只处理打包task
-    	if !(task =~ /\b(assemble)/)
-      		next
-    	end
+	lane :sit do
+		
+		pack_and_upload(envirment: "sit")
+	end
 
-    	hap_search_path   = File.join(project_dir, "**", "build", "**", "outputs", "**", "*.hap")
-    	app_search_path   = File.join(project_dir, "build", "outputs", "**", "*.app")
-    	new_haps          = Dir[hap_search_path].map { |path| File.expand_path(path) }
-    	new_apps          = Dir[app_search_path].map { |path| File.expand_path(path) }
-    
-    	last_hap_path     = new_haps.sort_by(&File.method(:mtime)).last
-    	last_app_path     = new_apps.sort_by(&File.method(:mtime)).last
- 
-    	Actions.lane_context[:HVIGOR_HAP_OUTPUT_PATH] = File.expand_path(last_hap_path) if last_hap_path
-    	Actions.lane_context[:HVIGOR_APP_OUTPUT_PATH] = File.expand_path(last_app_path) if last_app_path
-  	end
- 
-  lane :sit do
-    
-    pack_and_upload(envirment: "sit")
-  end
+	lane :uat do
 
-  lane :uat do
+		pack_and_upload(envirment: "uat")
+	end
 
-    pack_and_upload(envirment: "uat")
-  end
+	lane :pro do
 
-  lane :pro do
+		pack_and_upload(envirment: "pro")
+	end
 
-    pack_and_upload(envirment: "pro")
-  end
+	desc "build hap"
+	private_lane :pack_and_upload do |options|
 
-  desc "build hap"
-  private_lane :pack_and_upload do |options|
-
-    # Get configurations
-		config 				    	= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
+		# Get configurations
+		config 							= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
 		# load as map
-		settings 			    	= OpenStruct.new(config)
+		settings						= OpenStruct.new(config)
 		productName					= "default"
-    envirment						= options[:envirment]
-    app_name						= settings['app_name']
-    icon_url						= settings['icon_url'] 
+		envirment						= options[:envirment]
+		app_name						= settings['app_name']
+		icon_url						= settings['icon_url'] 
 
 		robot_token 				= settings['robot_token']
 
-    case envirment
+		case envirment
 
 		when 'sit'
-			outputDirectory	    = "#{Dir.pwd}/build/sit/"
-			productName			= settings['lane']['sit']['product']
-    
+			outputDirectory		= "#{Dir.pwd}/build/sit/"
+			productName				= settings['lane']['sit']['product']
 
-    	when 'uat'
-			outputDirectory = "#{Dir.pwd}/build/uat/"
-      		productName			= settings['lane']['uat']['product']
+		when 'uat'
+			outputDirectory		= "#{Dir.pwd}/build/uat/"
+			productName				= settings['lane']['uat']['product']
 
-      when 'pro'
-					outputDirectory = "#{Dir.pwd}/build/pro/"
-      		productName			= settings['lane']['pro']['product']
-    end
+		when 'pro'
+			outputDirectory		= "#{Dir.pwd}/build/pro/"
+			productName				= settings['lane']['pro']['product']
+		end
 
-     # 获取版本号
-    app_info                    = JSON.parse(File.read("../AppScope/app.json5"))["app"]
+		# 获取版本号
+		app_info						= JSON.parse(File.read("../AppScope/app.json5"))["app"]
 
-    currentTime 		  		= Time.new.strftime("%Y%m%d%H%M%S")
-     # 拼接CDN链接
-    public_cdn_url 				= settings['public_cdn_url'] 
+		currentTime					= Time.new.strftime("%Y%m%d%H%M%S")
+		# 拼接CDN链接
+		public_cdn_url			= settings['public_cdn_url'] 
 
-    hvigor(task: "clean")
-    hvigor(
-      task: "assembleHap",
-      product: productName,
-      build_mode: "release",
-      args: ["--mode", "module", "--no-daemon"],
-    )
-   
-    hap_path                        = Actions.lane_context[:HVIGOR_HAP_OUTPUT_PATH]
-    # 获取版本号
-    version_name					= app_info["versionName"]
-    # 重命名
-    hap_name							= "#{File::basename(hap_path, ".hap")}_#{version_name}_#{envirment}_#{currentTime}.hap"
-    new_hap_path					= File::join(File::dirname(hap_path), hap_name)
-    File::rename(hap_path, new_hap_path)
-    puts "Build output: #{new_hap_path}"
-    
+		hvigor(task: "clean")
+		hvigor(
+			task: "assembleHap",
+			product: productName,
+			build_mode: "release",
+			args: ["--mode", "module", "--no-daemon"],
+		)
+
+		hap_path							= Actions.lane_context[:HVIGOR_HAP_OUTPUT_PATH]
+		# 获取版本号
+		version_name					= app_info["versionName"]
+		# 重命名
+		hap_name							= "#{File::basename(hap_path, ".hap")}_#{version_name}_#{envirment}_#{currentTime}.hap"
+		new_hap_path					= File::join(File::dirname(hap_path), hap_name)
+		File::rename(hap_path, new_hap_path)
+		puts "Build output: #{new_hap_path}"
+
 		# 计算文件大小
-		file_size                   = File.size(new_hap_path) / 1024 / 1024
-		size_text                   = "#{file_size}MB"
+		file_size							= File.size(new_hap_path) / 1024 / 1024
+		size_text							= "#{file_size}MB"
 		puts "文件大小为#{size_text}MB"
 
 		# 根据oss规则拼接静态链接
-    hap_url 			    		= "#{public_cdn_url}/your_path/#{envirment}/#{hap_name}"
-		manifest_url 		 			= "#{public_cdn_url}/your_path/#{envirment}/#{currentTime}-download.json5"
-		itm_services_url 			= "store://enterprise/manifest?url=#{manifest_url}" 
+		hap_url								= "#{public_cdn_url}/your_path/#{envirment}/#{hap_name}"
+		manifest_url					= "#{public_cdn_url}/your_path/#{envirment}/#{currentTime}-download.json5"
+		itm_services_url			= "store://enterprise/manifest?url=#{manifest_url}" 
 
-    # 签名
-    sign_hap(
+		# 签名
+		sign_hap(
 			file_path: new_hap_path, 
 			envirment: envirment, 
 			app_info: app_info, 
@@ -176,16 +176,16 @@ platform :ios do
 			currentTime: currentTime
 		)
 
-    # 自动获取当前分支最新提交记录作为更新日志
-    changeLog = changelog_from_git_commits(
-                date_format: "short",
-                commits_count: "1",
-    )
+		# 自动获取当前分支最新提交记录作为更新日志
+		changeLog = changelog_from_git_commits(
+				date_format: "short",
+				commits_count: "1",
+		)
 
-   	description = "#{changeLog}"
+		description = "#{changeLog}"
 
-    # 创建下载页面
-    create_download_page(
+		# 创建下载页面
+		create_download_page(
 			envirment:envirment, 
 			currentTime: currentTime, 
 			changeLog: changeLog, 
@@ -198,16 +198,16 @@ platform :ios do
 		public_download_page_url	= "#{public_cdn_url}/your_path/#{envirment}/#{currentTime}-template.html"
 		
 
-    # 创建下载页面二维码
-    puts "start create qrcode"
-    create_qrcode(
+		# 创建下载页面二维码
+		puts "start create qrcode"
+		create_qrcode(
 			url: public_download_page_url, 
 			currentTime: currentTime, 
 			output_path: outputDirectory, 
 			envirment: envirment
 		)
-    
-    # upload ipa hap
+
+		# upload ipa hap
 		puts "start upload hap"
 		upload_to_server(
 			filePath: new_hap_path, 
@@ -215,7 +215,7 @@ platform :ios do
 			envirment: envirment
 		)
     
-  	# 发送消息通知
+		# 发送消息通知
 		if !robot_token.nil?
 			post_dingding_robot(
 				robot_token: robot_token, 
@@ -230,32 +230,32 @@ platform :ios do
 
   end
 
-  private_lane :sign_hap do |options|
-    
-    file_path			= options[:file_path] 
-    app_info			= options[:app_info]
-    hap_url				= options[:hap_url]
-    envirment			= options[:envirment]
-    currentTime		    = options[:currentTime]
+	private_lane :sign_hap do |options|
 
-    # 检查文件是否存在
-    unless File.exist?(file_path)
-      UI.user_error!("文件不存在: #{file_path}")
-    end
-    # 计算文件的 SHA256 哈希值
-    sha256 				    = Digest::SHA256.file(file_path).hexdigest
+		file_path			= options[:file_path] 
+		app_info			= options[:app_info]
+		hap_url				= options[:hap_url]
+		envirment			= options[:envirment]
+		currentTime		= options[:currentTime]
 
-    config				    = YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
-	# load as map
-	settings			    = OpenStruct.new(config)
-    deploy_domain	        = settings['deploy_domain']
-    icon_url			    = settings['icon_url']
-    app_name			    = settings['app_name']
-    compatibleSdkVersion	= settings['compatibleSdkVersion']
-    targetSdkVersion        = settings['targetSdkVersion']
+		# 检查文件是否存在
+		unless File.exist?(file_path)
+			UI.user_error!("文件不存在: #{file_path}")
+		end
+		# 计算文件的 SHA256 哈希值
+		sha256									= Digest::SHA256.file(file_path).hexdigest
 
-    # 组装download.json5
-    data = {
+		config									= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
+		# load as map
+		settings								= OpenStruct.new(config)
+		deploy_domain						= settings['deploy_domain']
+		icon_url								= settings['icon_url']
+		app_name								= settings['app_name']
+		compatibleSdkVersion		= settings['compatibleSdkVersion']
+		targetSdkVersion				= settings['targetSdkVersion']
+
+		# 组装download.json5
+		data = {
       "app":
       {
           "bundleName": app_info['bundleName'],
@@ -288,7 +288,7 @@ platform :ios do
       },
       "sign": ""
     }
-    json_string           = data.to_json
+    json_string					= data.to_json
 	
 		if Dir.exist?(File.join(File.dirname(Dir.pwd), "fastlane/build"))
 		
@@ -296,32 +296,32 @@ platform :ios do
 		 	Dir.mkdir(File.join(File.dirname(Dir.pwd), "fastlane/build"))
 		end
 
-    File.open("build/manifest.json5", 'w') do |file|
-      file.write(json_string)
-    end
+		File.open("build/manifest.json5", 'w') do |file|
+			file.write(json_string)
+		end
  
-    puts('manifest.json5 写入完毕')
+		puts('manifest.json5 写入完毕')
 
 
-    # 开始生成签名
-    sign_tool_path              = settings['sign_tool_path']
+		# 开始生成签名
+		sign_tool_path							= settings['sign_tool_path']
 
-    sign_p12_path               = settings['lane'][envirment]['sign_p12_path']
-    sign_keystore_passwd  		= settings['lane'][envirment]['sign_keystore_passwd']
-    sign_private                = settings['lane'][envirment]['sign_private']
-    sign_key_alias_passwd 		= settings['lane'][envirment]['sign_key_alias_passwd'] 
+		sign_p12_path								= settings['lane'][envirment]['sign_p12_path']
+		sign_keystore_passwd				= settings['lane'][envirment]['sign_keystore_passwd']
+		sign_private								= settings['lane'][envirment]['sign_private']
+		sign_key_alias_passwd				= settings['lane'][envirment]['sign_key_alias_passwd'] 
 
-    project_dir                 = Dir.home + sign_tool_path
-    sign_cmd                    = "java -jar #{project_dir}/manifest-sign-tool-1.0.0.jar -operation sign -mode localjks -inputFile build/manifest.json5 -outputFile build/download.json5 -keystore #{sign_p12_path} -keystorepasswd #{sign_keystore_passwd} -keyaliaspasswd #{sign_key_alias_passwd} -privatekey #{sign_private}"
-    
-    # Dir.chdir(project_dir) do
-    sh(*sign_cmd)
-    # end
+		project_dir									= Dir.home + sign_tool_path
+		sign_cmd										= "java -jar #{project_dir}/manifest-sign-tool-1.0.0.jar -operation sign -mode localjks -inputFile build/manifest.json5 -outputFile build/download.json5 -keystore #{sign_p12_path} -keystorepasswd #{sign_keystore_passwd} -keyaliaspasswd #{sign_key_alias_passwd} -privatekey #{sign_private}"
 
-    # upload hap
+		# Dir.chdir(project_dir) do
+		sh(*sign_cmd)
+		# end
+
+		# upload hap
 		puts "start upload json5"
-    json_path             		= File.join(File.dirname(Dir.pwd), "fastlane/build/download.json5")
-    json_name             		= "#{currentTime}-download.json5"
+		json_path										= File.join(File.dirname(Dir.pwd), "fastlane/build/download.json5")
+		json_name										= "#{currentTime}-download.json5"
 		
 		upload_to_server(
 			filePath: json_path, 
@@ -329,24 +329,21 @@ platform :ios do
 			envirment: envirment
 		)
 
-
-   
-
-  end
+	end
  
 
   desc "上传到服务器 "
 	private_lane :upload_to_server do |options|
 
 		# Get configurations
-		config                  = YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
+		config								= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
 		# load as map
-		settings                = OpenStruct.new(config)
+		settings							= OpenStruct.new(config)
 
-		cdn_upload_api 		    = settings['cdn_upload_api']
+		cdn_upload_api				= settings['cdn_upload_api']
 	
-		public_cdn_url 		    = settings['public_cdn_url']
-        app_name                = settings['app_name']
+		public_cdn_url				= settings['public_cdn_url']
+		app_name							= settings['app_name']
 
 		conn_options = {
 			request: {
@@ -380,9 +377,9 @@ platform :ios do
 		end
 
 		params = {
-    		#业务参数
-    		"business_param" =>  "xxxx",
-    		"file"	=> Faraday::UploadIO.new(filePath, 'application/hap', fileName),
+			#业务参数
+			"business_param" =>  "xxxx",
+			"file"	=> Faraday::UploadIO.new(filePath, 'application/hap', fileName),
 		}
 	
 		response = task.post cdn_upload_api, params
@@ -426,16 +423,16 @@ platform :ios do
 		# 2. 解析 HTML（自动识别文件类型）
 		doc = if html_content.include?('<!DOCTYPE html>')
 						Nokogiri::HTML.parse(html_content)
-      	else
-        		Nokogiri::HTML::DocumentFragment.parse(html_content)
-      	end
+				else
+					Nokogiri::HTML::DocumentFragment.parse(html_content)
+				end
 
 		envirment					= options[:envirment]
-        currentTime				    = options[:currentTime]
-        changeLog					= options[:changeLog]
-        itm_services_url 	        = options[:itm_services_url]
-		version 			        = options[:version]
-        app_name					= options[:app_name]
+		currentTime				= options[:currentTime]
+		changeLog					= options[:changeLog]
+		itm_services_url	= options[:itm_services_url]
+		version						= options[:version]
+		app_name					= options[:app_name]
 		file_size					= options[:file_size]
 
 		config						= YAML.load(open(File.join(File.dirname(Dir.pwd), "fastlane/FastConfig.yaml")))
@@ -445,25 +442,24 @@ platform :ios do
 
 		# 3. 定义要替换的字符串（旧内容 => 新内容）
 		replacements = {
-  			
-  			"$app_icon" => icon_url,
-  			"$title" => "#{app_name} HarmonyOS",
-  			"$env" => envirment,
-  			"v$version_name $version_code" => "V#{version}",
-  			"$date" => currentTime,
-  			"$itemService"=> itm_services_url,
-  			"$desc" => changeLog,
+			"$app_icon" => icon_url,
+			"$title" => "#{app_name} HarmonyOS",
+			"$env" => envirment,
+			"v$version_name $version_code" => "V#{version}",
+			"$date" => currentTime,
+			"$itemService"=> itm_services_url,
+			"$desc" => changeLog,
 			"$size" => file_size,
 			"$qrcode" => "#{currentTime}-qrcode.png"
 		}
 
 		# 4. 执行替换操作
 		doc.xpath('//text()').each do |text_node|
-  			content = text_node.content
-  			replacements.each do |old_str, new_str|
-    			content.gsub!(old_str, new_str)
-  			end
-  			text_node.content = content
+				content = text_node.content
+				replacements.each do |old_str, new_str|
+					content.gsub!(old_str, new_str)
+				end
+				text_node.content = content
 		end
 
 		# 5. 输出或保存结果
@@ -472,7 +468,7 @@ platform :ios do
 		if Dir.exist?(File.join(File.dirname(Dir.pwd), "fastlane/build/#{envirment}"))
 		
 		else
-		 	Dir.mkdir(File.join(File.dirname(Dir.pwd), "fastlane/build/#{envirment}"))
+			Dir.mkdir(File.join(File.dirname(Dir.pwd), "fastlane/build/#{envirment}"))
 		end
 
 		File.write(output_path, modified_html, encoding: 'UTF-8')
@@ -488,13 +484,13 @@ platform :ios do
   desc "create qrcode "
 	private_lane :create_qrcode do |options|
 		
-		url             = options[:url]
-		currentTime 	= options[:currentTime]
-		output_path 	= options[:output_path]
-		envirment 		= options[:envirment]
-		fileName        = currentTime + "-qrcode.png"
-		output          = output_path + "/" + currentTime + "-qrcode.png"
-		qr              = RQRCode::QRCode.new(url)
+		url						= options[:url]
+		currentTime		= options[:currentTime]
+		output_path		= options[:output_path]
+		envirment			= options[:envirment]
+		fileName			= currentTime + "-qrcode.png"
+		output				= output_path + "/" + currentTime + "-qrcode.png"
+		qr						= RQRCode::QRCode.new(url)
  
 		# 生成PNG图片（你也可以选择其他格式，如SVG）
 		png = qr.as_png(
@@ -508,7 +504,7 @@ platform :ios do
 			resize_exactly_to: false,
 			resize_gte_to: false,
 			size: 200,
-		  )
+		)
 		IO.binwrite(output, png.to_s)
 
 		puts "start upload qrcode"
